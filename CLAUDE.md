@@ -34,6 +34,18 @@ Instructions for Claude when this skill is invoked.
 - **Create a new skill**: `npm skill init`
 - **Register a skill**: `npx skills add [path to skill dir]`
 
+## After Editing a Skill
+
+Edits in this repo don't propagate to the installed copies automatically (`npx skills update` doesn't track local skills). After committing changes to a skill, copy the updated file to the installed location:
+
+```bash
+cp <skill-dir>/SKILL.md ~/.agents/skills/<skill-name>/SKILL.md
+```
+
+For example: `cp codex-review/SKILL.md ~/.agents/skills/codex-review/SKILL.md`
+
+`~/.claude/skills/<skill-name>` symlinks to `~/.agents/skills/<skill-name>`, so the copy is all that's needed.
+
 ## Current Skills
 
 - **get-date**: Simple skill that runs `date` — good reference for minimal skill structure

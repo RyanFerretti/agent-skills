@@ -116,7 +116,7 @@ The final agent message is in an `item.completed` event:
 {"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"..."}}
 ```
 
-To resume, use `codex exec resume <thread_id>`.
+To resume a session, use `codex exec resume <thread_id>`.
 
 ## Core Loop
 
