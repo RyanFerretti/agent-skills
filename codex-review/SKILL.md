@@ -206,7 +206,7 @@ If CHANGES_REQUESTED, list each issue as:
 ISSUE [number]:
 FILE: [exact file path]
 LINE: [line number or range]
-SEVERITY: [critical | warning]
+PRIORITY: [P0 (critical) | P1 (high) | P2 (medium) | P3 (low)]
 DESCRIPTION: [what is wrong and why it matters]
 SUGGESTION: [specific code or approach to fix it]
 
