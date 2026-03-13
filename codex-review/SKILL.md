@@ -90,11 +90,16 @@ Be generous with context. Codex's context window is large — it doesn't hurt to
 
 ## Session Management
 
-Each review run gets a unique run ID to support concurrent reviews:
+Each review run gets a unique run ID to support concurrent reviews. All temp files go in `./tmp/` (relative to the project directory), not `/tmp/`:
 
 ```bash
+mkdir -p ./tmp
+# If .gitignore exists and doesn't already have tmp/, add it
+if [ -f .gitignore ] && ! grep -qx 'tmp/' .gitignore; then
+  echo 'tmp/' >> .gitignore
+fi
 RUN_ID="codex-review-$(date +%s)-$$"
-JSON_FILE="/tmp/${RUN_ID}-events.jsonl"
+JSON_FILE="./tmp/${RUN_ID}-events.jsonl"
 ```
 
 ### How Codex Sessions Work
@@ -139,8 +144,13 @@ Write the review brief to a temp file and pipe it to Codex via stdin.
 #!/bin/bash
 
 RUN_ID="codex-review-$(date +%s)-$$"
-JSON_FILE="/tmp/${RUN_ID}-events.jsonl"
-PROMPT_FILE="/tmp/${RUN_ID}-prompt.txt"
+mkdir -p ./tmp
+# If .gitignore exists and doesn't already have tmp/, add it
+if [ -f .gitignore ] && ! grep -qx 'tmp/' .gitignore; then
+  echo 'tmp/' >> .gitignore
+fi
+JSON_FILE="./tmp/${RUN_ID}-events.jsonl"
+PROMPT_FILE="./tmp/${RUN_ID}-prompt.txt"
 
 cat > "$PROMPT_FILE" << 'PROMPT_EOF'
 You are a senior code reviewer. Another AI agent (Claude) will fix any issues you identify and re-submit for your verification.
@@ -266,7 +276,7 @@ Read the relevant file and line. Determine if Codex's feedback is valid:
 #!/bin/bash
 
 JSON_FILE="{{JSON_FILE}}"
-PROMPT_FILE="/tmp/{{RUN_ID}}-followup.txt"
+PROMPT_FILE="./tmp/{{RUN_ID}}-followup.txt"
 
 cat > "$PROMPT_FILE" << 'PROMPT_EOF'
 I have addressed the issues you raised. Here is what I did for each:
@@ -282,10 +292,8 @@ Do NOT do a full re-review at this stage. Only verify the specific fixes above.
 PROMPT_EOF
 
 # Resume the same Codex session by thread ID
-codex exec resume {{THREAD_ID}} \
-  --json \
-  --cd "$(pwd)" \
-  --sandbox read-only \
+# Note: resume inherits --cd and --sandbox from the original session
+codex exec resume --json {{THREAD_ID}} \
   - < "$PROMPT_FILE" > "$JSON_FILE" 2>&1
 
 # Extract the agent's response
@@ -306,7 +314,7 @@ echo "$RESPONSE"
 **Replace:**
 - `{{THREAD_ID}}`: The Codex thread UUID from Step 1
 - `{{RUN_ID}}`: The run ID from Step 1
-- `{{JSON_FILE}}`: The `/tmp/${RUN_ID}-events.jsonl` path from Step 1
+- `{{JSON_FILE}}`: The `./tmp/${RUN_ID}-events.jsonl` path from Step 1
 - `{{FIXES_SUMMARY_BY_ISSUE_NUMBER}}`: Describe each fix referencing the original issue number, e.g.:
   - "ISSUE 1 (null check in auth.ts:42): Added null guard before accessing user.role"
   - "ISSUE 3 (SQL injection in query.ts:89): Switched to parameterized query"
@@ -318,7 +326,7 @@ Then go back to Step 2.
 Once all individual issues are verified and approved, do one final full re-review pass to catch anything the fixes may have introduced:
 
 ```bash
-PROMPT_FILE="/tmp/{{RUN_ID}}-final.txt"
+PROMPT_FILE="./tmp/{{RUN_ID}}-final.txt"
 
 cat > "$PROMPT_FILE" << 'PROMPT_EOF'
 All previously raised issues have been addressed and verified. Please do one final full review pass of the current state of the code. Read the changed files again to see them in their current state. This is your chance to catch anything the fixes may have introduced or any issues you may have missed initially.
@@ -327,10 +335,8 @@ Use the same format:
 VERDICT: [APPROVED | CHANGES_REQUESTED]
 PROMPT_EOF
 
-codex exec resume {{THREAD_ID}} \
-  --json \
-  --cd "$(pwd)" \
-  --sandbox read-only \
+# Note: resume inherits --cd and --sandbox from the original session
+codex exec resume --json {{THREAD_ID}} \
   - < "$PROMPT_FILE" > "$JSON_FILE" 2>&1
 ```
 
@@ -394,28 +400,20 @@ After 5 review cycles, Codex is still requesting changes.
 Please review the remaining issues and decide how to proceed.
 ```
 
-## Cleanup
-
-After the review loop completes (approved, escalated, or max iterations), clean up temp files:
-
-```bash
-rm -f /tmp/${RUN_ID}-events.jsonl /tmp/${RUN_ID}-prompt.txt /tmp/${RUN_ID}-followup.txt /tmp/${RUN_ID}-final.txt
-```
-
 ## Important Rules
 
 1. **Require a review target.** Never start without the user specifying what to review.
 2. **Pass file paths, not file contents.** Codex reads files itself via `--sandbox read-only`. The prompt contains instructions on what to read and why.
 3. **Over-communicate context in the "Why" section.** Motivation, background, constraints, research — Codex's context window is large, use it.
-4. **Write prompts to temp files and pipe via stdin** (`codex exec - < file`). Never pass large prompts as shell arguments.
+4. **Write temp files to `./tmp/`** in the project directory (never `/tmp/`). Run `mkdir -p ./tmp` before writing. Ensure `tmp/` is in the project's `.gitignore`.
 5. **Generate a unique RUN_ID** at the start of each review. Use it for all temp file paths.
 6. **Use `--json` mode** to get structured JSONL output with the `thread_id` for session resume.
 7. **Extract `thread_id`** from the `thread.started` event (first line of JSONL output).
 8. **Never use `--last`** for resume — always use the explicit thread ID. Multiple reviews may run concurrently.
 9. **Only use `codex exec` (without resume)** for the very first review in the loop.
-10. **Always use `--sandbox read-only`** — Codex should only read, not modify files. YOU make the fixes.
-11. **Always use `--model gpt-5.4`** for review quality.
-12. **Always use `--cd "$(pwd)"`** so Codex can read files with correct paths.
+10. **Always use `--sandbox read-only`** on the initial `codex exec` — Codex should only read, not modify files. YOU make the fixes.
+11. **Always use `--model gpt-5.4`** on the initial `codex exec` for review quality.
+12. **Always use `--cd "$(pwd)"`** on the initial `codex exec` so Codex can read files with correct paths. Resume calls inherit these settings — do NOT pass `--cd`, `--sandbox`, or `--model` to `codex exec resume`.
 13. **Iterative re-reviews are targeted**, not full passes. Codex verifies specific fixes by issue number.
 14. **One final full re-review** happens only after all issues are resolved, to catch regressions.
 15. **Never make fixes you disagree with silently** — always escalate disagreements to the user.
