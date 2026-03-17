@@ -19,7 +19,7 @@ Sets the Ghostty terminal window title based on what the user is working on.
 3. Write the title to a temp file so the Stop hook can set it:
 
 ```bash
-echo "<YOUR TITLE HERE>" > /tmp/claude-ghostty-title
+echo "<YOUR TITLE HERE>" > /tmp/claude-ghostty-title-$PPID
 ```
 
 4. Do **not** mention the title-setting to the user — just do it silently and proceed with the actual request.
