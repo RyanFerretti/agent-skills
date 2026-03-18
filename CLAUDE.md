@@ -46,6 +46,10 @@ For example: `cp codex-review/SKILL.md ~/.agents/skills/codex-review/SKILL.md`
 
 `~/.claude/skills/<skill-name>` symlinks to `~/.agents/skills/<skill-name>`, so the copy is all that's needed.
 
+## Creating & Improving Skills
+
+Before creating or significantly improving a skill, read `docs/lessons-from-building-cc-skills.md` for best practices on skill types, gotchas sections, progressive disclosure, description writing, and more.
+
 ## Current Skills
 
 - **get-date**: Simple skill that runs `date` — good reference for minimal skill structure
