@@ -219,7 +219,6 @@ codex exec \
   --json \
   --cd "$(pwd)" \
   --sandbox read-only \
-  --model gpt-5.4 \
   - < "$PROMPT_FILE" > "$JSON_FILE" 2>&1
 
 # Extract the thread_id from the first event
@@ -412,11 +411,10 @@ Please review the remaining issues and decide how to proceed.
 8. **Never use `--last`** for resume — always use the explicit thread ID. Multiple reviews may run concurrently.
 9. **Only use `codex exec` (without resume)** for the very first review in the loop.
 10. **Always use `--sandbox read-only`** on the initial `codex exec` — Codex should only read, not modify files. YOU make the fixes.
-11. **Always use `--model gpt-5.4`** on the initial `codex exec` for review quality.
-12. **Always use `--cd "$(pwd)"`** on the initial `codex exec` so Codex can read files with correct paths. Resume calls inherit these settings — do NOT pass `--cd`, `--sandbox`, or `--model` to `codex exec resume`.
-13. **Iterative re-reviews are targeted**, not full passes. Codex verifies specific fixes by issue number.
-14. **One final full re-review** happens only after all issues are resolved, to catch regressions.
-15. **Never make fixes you disagree with silently** — always escalate disagreements to the user.
-16. **Track iteration count** — report it in the final output.
-17. **Show the user what you're fixing** before each re-submission so they can follow along.
-18. **Keep fixes minimal** — only fix what Codex flagged. Don't refactor or improve surrounding code.
+11. **Always use `--cd "$(pwd)"`** on the initial `codex exec` so Codex can read files with correct paths. Resume calls inherit these settings — do NOT pass `--cd` or `--sandbox` to `codex exec resume`.
+12. **Iterative re-reviews are targeted**, not full passes. Codex verifies specific fixes by issue number.
+13. **One final full re-review** happens only after all issues are resolved, to catch regressions.
+14. **Never make fixes you disagree with silently** — always escalate disagreements to the user.
+15. **Track iteration count** — report it in the final output.
+16. **Show the user what you're fixing** before each re-submission so they can follow along.
+17. **Keep fixes minimal** — only fix what Codex flagged. Don't refactor or improve surrounding code.
